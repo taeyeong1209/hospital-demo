@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHA Laboratory - 검사 의뢰</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-bg: #002a5c; /* 차병원 네이비 */
+            --sidebar-text: #e2e8f0;
+            --primary: #f37321;    /* 차병원 오렌지 */
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-dark: #333333;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Noto Sans KR', sans-serif; background-color: var(--bg-color); color: var(--text-dark); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* 사이드바 */
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); padding: 2rem 1.5rem; display: flex; flex-direction: column; color: white; }
+        .logo { font-size: 1.5rem; font-weight: 700; margin-bottom: 3rem; color: white; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px;}
+        .menu-item { display: block; padding: 12px 16px; margin-bottom: 8px; color: var(--sidebar-text); text-decoration: none; border-radius: 8px; transition: 0.3s; font-weight: 500; }
+        .menu-item:hover { background-color: rgba(255,255,255,0.1); color: white; }
+        .menu-item.active { background-color: var(--primary); color: white; box-shadow: 0 4px 6px rgba(243, 115, 33, 0.3); }
+
+        /* 메인 콘텐츠 */
+        .main-content { flex: 1; padding: 2rem 3rem; overflow-y: auto; }
+        .header { margin-bottom: 2rem; border-bottom: 2px solid #ddd; padding-bottom: 1rem; }
+        .header h2 { font-size: 1.8rem; margin: 0; color: #002a5c; }
+        .header p { color: #666; margin-top: 5px; }
+
+        /* 카드 및 폼 */
+        .card { background: var(--card-bg); padding: 2.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 800px; border-top: 4px solid var(--primary); }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 1.5rem; }
+        
+        label { display: block; margin-bottom: 0.6rem; font-weight: 600; font-size: 0.95rem; color: #002a5c; }
+        input[type="text"], select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; transition: 0.2s; background-color: #fff; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(243, 115, 33, 0.1); }
+        
+        /* 버튼 */
+        .btn-submit { background-color: var(--primary); color: white; border: none; padding: 14px; font-size: 1.1rem; font-weight: 600; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.2s; }
+        .btn-submit:hover { background-color: #d95e0f; }
+
+        /* 조건부 표시 영역 (타겟 유전자) */
+        .hidden-section { display: none; background-color: #fff4e6; padding: 15px; border-radius: 8px; border: 1px solid #ffe8cc; margin-top: -10px; margin-bottom: 20px; }
+        .checkbox-group { display: flex; gap: 20px; flex-wrap: wrap; }
+        .checkbox-label { display: flex; align-items: center; font-weight: normal; cursor: pointer; color: #333; margin: 0; }
+        .checkbox-label input { margin-right: 8px; width: 18px; height: 18px; accent-color: var(--primary); }
+
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="logo">🧬 CHABiotech Genomics Lab System</div>
+        <nav>
+            <a href="request.html" class="menu-item active">📝 검사 의뢰 (Request)</a>
+            <a href="result.html" class="menu-item">📊 결과 조회 (Status)</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h2>신규 검사 의뢰</h2>
+            <p>환자 검체 정보 및 분석 항목(NIPT, 맘프리 등)을 입력하세요.</p>
+        </div>
+
+        <div class="card">
+            <form id="requestForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>환자 ID (Patient ID)</label>
+                        <input type="text" id="pId" placeholder="예: P-2026-001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>환자 성명</label>
+                        <input type="text" id="pName" placeholder="성명을 입력하세요" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>검사 항목 선택 (Test Type)</label>
+                    <select id="testType" required onchange="toggleTargetSection()">
+                        <option value="" disabled selected>검사 항목을 선택하세요</option>
+                        <option value="NIPT">NIPT (비침습적 산전검사)</option>
+                        <option value="Mom-Free">맘프리 (Mom-Free) 보인자 검사</option>
+                        <option value="NGS Panel">NGS 유전체 패널</option>
+                        <option value="General">일반 유전 검사</option>
+                    </select>
+                </div>
+
+                <div id="targetSection" class="hidden-section">
+                    <label style="color:#d95e0f;">🎯 맘프리 타겟 유전자 선택 (다중 선택 가능)</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label"><input type="checkbox" name="targets" value="SMA"> SMA (척수성 근위축증)</label>
+                        <label class="checkbox-label"><input type="checkbox" name="targets" value="DM1"> DM1 (근긴장성 이영양증)</label>
+                        <label class="checkbox-label"><input type="checkbox" name="targets" value="MTHFR"> MTHFR (엽산 대사)</label>
+                        <label class="checkbox-label"><input type="checkbox" name="targets" value="Fragile X"> Fragile X (취약 X 증후군)</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>임상 소견 (Clinical Notes)</label>
+                    <textarea id="memo" rows="3" placeholder="특이사항 입력"></textarea>
+                </div>
+
+                <button type="submit" class="btn-submit">검사 의뢰 접수하기</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 맘프리 선택 시 타겟 옵션 보이기/숨기기
+        function toggleTargetSection() {
+            const testType = document.getElementById('testType').value;
+            const targetSection = document.getElementById('targetSection');
+            
+            if (testType === 'Mom-Free') {
+                targetSection.style.display = 'block';
+            } else {
+                targetSection.style.display = 'none';
+                // 숨길 때 체크박스 초기화
+                document.querySelectorAll('input[name="targets"]').forEach(el => el.checked = false);
+            }
+        }
+
+        document.getElementById('requestForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // 체크박스 값 가져오기
+            const selectedTargets = [];
+            document.querySelectorAll('input[name="targets"]:checked').forEach((checkbox) => {
+                selectedTargets.push(checkbox.value);
+            });
+
+            const testType = document.getElementById('testType').value;
+            let finalTestName = testType;
+            
+            // 맘프리인 경우 타겟 정보를 함께 저장
+            if (testType === 'Mom-Free' && selectedTargets.length > 0) {
+                finalTestName = `Mom-Free [${selectedTargets.join(', ')}]`;
+            }
+
+            const newRequest = {
+                id: document.getElementById('pId').value,
+                name: document.getElementById('pName').value,
+                test: finalTestName,
+                rawTestType: testType, // 로직용 원본 타입
+                targets: selectedTargets.join('; '), // CSV용 데이터
+                date: new Date().toISOString().split('T')[0],
+                status: 'Processing'
+            };
+
+            let db = JSON.parse(localStorage.getItem('hospitalDB')) || [];
+            db.push(newRequest);
+            localStorage.setItem('hospitalDB', JSON.stringify(db));
+
+            if(confirm("의뢰가 접수되었습니다. 결과 페이지로 이동하시겠습니까?")) {
+                window.location.href = 'result.html';
+            } else {
+                document.getElementById('requestForm').reset();
+                toggleTargetSection();
+            }
+        });
+    </script>
+</body>
+</html>

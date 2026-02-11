@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHA Laboratory - 결과 조회</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-bg: #002a5c;
+            --sidebar-text: #e2e8f0;
+            --primary: #f37321;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-dark: #333333;
+            --success: #28a745;
+            --warning: #ffc107;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Noto Sans KR', sans-serif; background-color: var(--bg-color); color: var(--text-dark); display: flex; height: 100vh; overflow: hidden; }
+
+        /* 사이드바 */
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); padding: 2rem 1.5rem; display: flex; flex-direction: column; color: white; }
+        .logo { font-size: 1.5rem; font-weight: 700; margin-bottom: 3rem; color: white; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px;}
+        .menu-item { display: block; padding: 12px 16px; margin-bottom: 8px; color: var(--sidebar-text); text-decoration: none; border-radius: 8px; transition: 0.3s; font-weight: 500; }
+        .menu-item:hover { background-color: rgba(255,255,255,0.1); color: white; }
+        .menu-item.active { background-color: var(--primary); color: white; box-shadow: 0 4px 6px rgba(243, 115, 33, 0.3); }
+
+        /* 메인 콘텐츠 */
+        .main-content { flex: 1; padding: 2rem 3rem; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .header h2 { font-size: 1.8rem; margin: 0; color: #002a5c; }
+        
+        /* 버튼 그룹 */
+        .btn-group { display: flex; gap: 10px; }
+        .btn-csv { background-color: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-reset { background-color: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+
+        /* 요약 카드 */
+        .summary-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 2rem; }
+        .summary-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 5px solid var(--primary); }
+        .summary-card h3 { margin: 0; color: #666; font-size: 0.9rem; }
+        .summary-card p { margin: 10px 0 0 0; font-size: 2rem; font-weight: 700; color: #002a5c; }
+
+        /* 테이블 */
+        .table-container { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background-color: #f1f3f5; padding: 1rem; font-weight: 700; color: #495057; text-align: left; border-bottom: 2px solid #dee2e6; }
+        td { padding: 1.2rem 1rem; border-bottom: 1px solid #e9ecef; color: #333; }
+        tr:hover { background-color: #f8f9fa; }
+
+        .badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+        .badge.processing { background-color: #fff3cd; color: #856404; }
+        .badge.completed { background-color: #d4edda; color: #155724; }
+
+        .target-tag { display: inline-block; background: #e7f5ff; color: #002a5c; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-right: 4px; border: 1px solid #d0ebff; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="logo">🧬 CHABiotech Genomics Lab System</div>
+        <nav>
+            <a href="request.html" class="menu-item">📝 검사 의뢰 (Request)</a>
+            <a href="result.html" class="menu-item active">📊 결과 조회 (Status)</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h2>검사 진행 현황</h2>
+            <div class="btn-group">
+                <button onclick="downloadCSV()" class="btn-csv">📥 CSV 다운로드</button>
+                <button onclick="resetData()" class="btn-reset">🗑️ 초기화</button>
+            </div>
+        </div>
+
+        <div class="summary-cards">
+            <div class="summary-card" style="border-left-color: #002a5c;">
+                <h3>전체 의뢰 (Total)</h3>
+                <p id="totalCount">0</p>
+            </div>
+            <div class="summary-card" style="border-left-color: var(--warning);">
+                <h3>진행 중 (Processing)</h3>
+                <p id="ingCount">0</p>
+            </div>
+            <div class="summary-card" style="border-left-color: var(--success);">
+                <h3>완료 (Completed)</h3>
+                <p id="doneCount">0</p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>접수일자</th>
+                        <th>환자 ID</th>
+                        <th>환자 성명</th>
+                        <th>검사 항목 및 타겟</th>
+                        <th>상태</th>
+                        <th>결과지</th>
+                    </tr>
+                </thead>
+                <tbody id="resultTableBody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function loadData() {
+            let db = JSON.parse(localStorage.getItem('hospitalDB')) || [];
+            
+            if (db.length === 0) {
+                db = [
+                    { date: '2026-02-10', id: 'P-2026-001', name: '김철수', test: 'NIPT', status: 'Completed' },
+                    { date: '2026-02-11', id: 'P-2026-002', name: '이영희', test: 'Mom-Free [SMA, Fragile X]', status: 'Processing' }
+                ];
+                localStorage.setItem('hospitalDB', JSON.stringify(db));
+            }
+
+            const tableBody = document.getElementById('resultTableBody');
+            tableBody.innerHTML = "";
+            let total = 0, ing = 0, done = 0;
+
+            db.reverse().forEach((item) => {
+                total++;
+                let badgeClass = 'processing';
+                let statusText = '분석 진행 중';
+                let btnHtml = '<button style="opacity:0.5; border:1px solid #ddd; background:white; padding:4px 8px; border-radius:4px;" disabled>대기</button>';
+
+                if (item.status === 'Completed') {
+                    badgeClass = 'completed';
+                    statusText = '분석 완료';
+                    btnHtml = '<button onclick="alert(\'PDF 결과지를 다운로드합니다.\')" style="color:#002a5c; border:1px solid #002a5c; background:white; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold;">결과 보기</button>';
+                    done++;
+                } else {
+                    ing++;
+                }
+
+                let displayTest = item.test;
+                if(item.test.includes('[')) {
+                    const parts = item.test.split('[');
+                    const mainTitle = parts[0];
+                    const tags = parts[1].replace(']', '').split(',');
+                    
+                    let tagHtml = '';
+                    tags.forEach(tag => {
+                        tagHtml += `<span class="target-tag">${tag.trim()}</span>`;
+                    });
+                    displayTest = `<strong>${mainTitle}</strong><br><div style="margin-top:4px;">${tagHtml}</div>`;
+                }
+
+                const row = `
+                    <tr>
+                        <td>${item.date}</td>
+                        <td>${item.id}</td>
+                        <td>${item.name}</td>
+                        <td>${displayTest}</td>
+                        <td><span class="badge ${badgeClass}">${statusText}</span></td>
+                        <td>${btnHtml}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+
+            document.getElementById('totalCount').innerText = total;
+            document.getElementById('ingCount').innerText = ing;
+            document.getElementById('doneCount').innerText = done;
+        }
+
+        // CSV 다운로드 함수 (BOM 추가로 한글 깨짐 해결)
+        function downloadCSV() {
+            let db = JSON.parse(localStorage.getItem('hospitalDB')) || [];
+            if(db.length === 0) { alert('다운로드할 데이터가 없습니다.'); return; }
+
+            // CSV 헤더 작성
+            let csvContent = "Date,Patient ID,Name,Test Item,Status\n";
+
+            db.forEach(row => {
+                // 콤마(,)가 포함된 텍스트가 깨지지 않도록 쌍따옴표로 감싸기
+                let testItem = `"${row.test}"`; 
+                let rowString = `${row.date},${row.id},${row.name},${testItem},${row.status}`;
+                csvContent += rowString + "\n";
+            });
+
+            // ★ 핵심 해결책: BOM(Byte Order Mark) 추가 (\uFEFF)
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+            // 다운로드 링크 생성 및 클릭 트리거
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", "laboratory_results.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function resetData() {
+            if(confirm("정말 모든 데이터를 삭제하시겠습니까?")) {
+                localStorage.removeItem('hospitalDB');
+                location.reload();
+            }
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
